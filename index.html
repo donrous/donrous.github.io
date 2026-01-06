@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Locals Coffee - Daily Sudoku</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    
+    // Icon components
+    const Coffee = () => <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/></svg>;
+    const Trophy = () => <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>;
+    const Flame = () => <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>;
+    const Undo2 = () => <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>;
+
+    function Locals() {
+      const [view, setView] = useState('game');
+      const [moveHistory, setMoveHistory] = useState([]);
+
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const todayGame = `Sudoku ${days[new Date().getDay()]}`;
+
+      const adjectives = ['Swift', 'Clever', 'Bright', 'Quick', 'Sharp', 'Smart', 'Wise', 'Bold'];
+      const nouns = ['Fox', 'Eagle', 'Tiger', 'Wolf', 'Bear', 'Hawk', 'Lion', 'Panda'];
+      const colors = ['#d4af37', '#ffd700', '#c9b037', '#b8860b', '#daa520', '#f4c430'];
+
+      const [userId] = useState(() => {
+        try {
+          const saved = localStorage.getItem('user-id');
+          if (saved) return JSON.parse(saved);
+          const newUser = {
+            id: Math.random().toString(36).substr(2, 9),
+            adjective: adjectives[Math.floor(Math.random() * adjectives.length)],
+            noun: nouns[Math.floor(Math.random() * nouns.length)],
+            number: Math.floor(Math.random() * 9000) + 1000,
+            color: colors[Math.floor(Math.random() * colors.length)]
+          };
+          localStorage.setItem('user-id', JSON.stringify(newUser));
+          return newUser;
+        } catch {
+          return { id: '123', adjective: 'Swift', noun: 'Fox', number: 1234, color: '#d4af37' };
+        }
+      });
+
+      const [userStats, setUserStats] = useState(() => {
+        try {
+          const saved = localStorage.getItem('user-stats');
+          return saved ? JSON.parse(saved) : {
+            totalCompletions: 0, currentStreak: 0, longestStreak: 0, lastPlayedDate: null,
+            fastestTime: null, completionDates: [], consecutiveRedemptions: 0
+          };
+        } catch { 
+          return { totalCompletions: 0, currentStreak: 0, longestStreak: 0, lastPlayedDate: null, fastestTime: null, completionDates: [], consecutiveRedemptions: 0 }; 
+        }
+      });
+
+      const generatePuzzle = () => {
+        const date = new Date().toDateString();
+        const seed = date.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const base = [[5,3,4,6,7,8,9,1,2],[6,7,2,1,9,5,3,4,8],[1,9,8,3,4,2,5,6,7],[8,5,9,7,6,1,4,2,3],[4,2,6,8,5,3,7,9,1],[7,1,3,9,2,4,8,5,6],[9,6,1,5,3,7,2,8,4],[2,8,7,4,1,9,6,3,5],[3,4,5,2,8,6,1,7,9]];
+        const puzzle = base.map(row => [...row]);
+        let removed = 0, rng = seed;
+        while (removed < 40) {
+          rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+          const row = rng % 9;
+          rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+          const col = rng % 9;
+          if (puzzle[row][col] !== 0) { puzzle[row][col] = 0; removed++; }
+        }
+        return { puzzle, solution: base };
+      };
+
+      const [gameState, setGameState] = useState(() => {
+        try {
+          const saved = localStorage.getItem('sudoku-state');
+          const today = new Date().toDateString();
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.date === today) return parsed;
+          }
+        } catch {}
+        const { puzzle, solution } = generatePuzzle();
+        return { 
+          board: puzzle.map(row => [...row]), 
+          solution, 
+          initial: puzzle.map(row => [...row]), 
+          selectedCell: null, 
+          completed: false, 
+          discountCode: null, 
+          date: new Date().toDateString(), 
+          startTime: Date.now(), 
+          completionTime: null,
+          discountPercent: null
+        };
+      });
+
+      useEffect(() => { try { localStorage.setItem('sudoku-state', JSON.stringify(gameState)); } catch {} }, [gameState]);
+      useEffect(() => { try { localStorage.setItem('user-stats', JSON.stringify(userStats)); } catch {} }, [userStats]);
+
+      const selectCell = (row, col) => {
+        if (gameState.initial[row][col] !== 0 || gameState.completed) return;
+        setGameState(prev => ({ ...prev, selectedCell: prev.selectedCell?.[0] === row && prev.selectedCell?.[1] === col ? null : [row, col] }));
+      };
+
+      const handleSubmit = () => {
+        const isComplete = gameState.board.every((row, i) => row.every((cell, j) => cell === gameState.solution[i][j]));
+        
+        if (isComplete) {
+          const compTime = Date.now() - gameState.startTime;
+          const date = new Date();
+          const dateStr = `${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+          
+          const min = compTime / 60000;
+          const disc = min < 3 ? 15 : min < 5 ? 10 : 5;
+          const code = `LOCAL-${dateStr}-001`;
+          
+          const today = date.toDateString();
+          let newStreak = 1;
+          if (userStats.lastPlayedDate) {
+            const last = new Date(userStats.lastPlayedDate);
+            const diff = Math.floor((new Date(today) - last) / 86400000);
+            if (diff === 1) newStreak = userStats.currentStreak + 1;
+            else if (diff > 1) newStreak = 1;
+            else newStreak = userStats.currentStreak;
+          }
+          
+          const updated = { 
+            totalCompletions: userStats.totalCompletions + 1, 
+            currentStreak: newStreak, 
+            longestStreak: Math.max(userStats.longestStreak, newStreak), 
+            lastPlayedDate: today, 
+            fastestTime: userStats.fastestTime ? Math.min(userStats.fastestTime, compTime) : compTime, 
+            completionDates: [...userStats.completionDates, today],
+            consecutiveRedemptions: userStats.consecutiveRedemptions
+          };
+          
+          setUserStats(updated);
+          setGameState(prev => ({ ...prev, completed: true, discountCode: code, selectedCell: null, completionTime: compTime, discountPercent: disc }));
+        } else {
+          alert('Not quite right! Check your answers and try again.');
+        }
+      };
+
+      const enterNumber = (num) => {
+        if (!gameState.selectedCell || gameState.completed) return;
+        const [row, col] = gameState.selectedCell;
+        if (gameState.initial[row][col] !== 0) return;
+        
+        const oldBoard = gameState.board.map(r => [...r]);
+        setMoveHistory(prev => [...prev, { board: oldBoard }]);
+        
+        const newBoard = gameState.board.map(r => [...r]);
+        newBoard[row][col] = num;
+        
+        setGameState(prev => ({ ...prev, board: newBoard }));
+      };
+
+      const undo = () => {
+        if (moveHistory.length === 0) return;
+        setGameState(prev => ({ ...prev, board: moveHistory[moveHistory.length - 1].board }));
+        setMoveHistory(prev => prev.slice(0, -1));
+      };
+
+      const reset = () => {
+        const { puzzle, solution } = generatePuzzle();
+        setGameState({ 
+          board: puzzle.map(row => [...row]), solution, initial: puzzle.map(row => [...row]), 
+          selectedCell: null, completed: false, discountCode: null, date: new Date().toDateString(), 
+          startTime: Date.now(), completionTime: null, discountPercent: null
+        });
+        setMoveHistory([]);
+      };
+
+      const fmt = (ms) => `${Math.floor(ms / 60000)}:${Math.floor((ms % 60000) / 1000).toString().padStart(2, '0')}`;
+      const isInit = (r, c) => gameState.initial[r][c] !== 0;
+      const isSel = (r, c) => gameState.selectedCell?.[0] === r && gameState.selectedCell?.[1] === c;
+      const getName = () => `${userId.adjective}${userId.noun}#${userId.number}`;
+      const isPuzzleFilled = () => gameState.board.every(row => row.every(cell => cell !== 0));
+
+      if (view === 'streaks') {
+        const prog = userStats.consecutiveRedemptions % 6;
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-orange-50 p-4">
+            <div className="max-w-md mx-auto">
+              <button onClick={() => setView('game')} className="text-stone-600 mb-4">← Back</button>
+              <div className="bg-white/80 border-2 border-stone-200 rounded-3xl shadow-2xl p-8">
+                <div className="w-16 h-16 text-orange-500 mx-auto mb-4"><Flame /></div>
+                <h2 className="text-3xl font-bold text-stone-900 mb-6 text-center">Streak Rewards</h2>
+                
+                <div className="bg-orange-50 rounded-2xl p-6 mb-6 border-2 border-orange-200">
+                  <h3 className="text-xl font-bold mb-2">Daily Reward</h3>
+                  <p>Complete puzzle → Get <strong>5-15% off</strong> coffee</p>
+                </div>
+
+                <div className="bg-green-50 rounded-2xl p-6 mb-6 border-2 border-green-200">
+                  <h3 className="text-xl font-bold mb-2">🏆 Streak Bonus</h3>
+                  <p className="mb-2"><strong>Complete & redeem 5 days in a row</strong></p>
+                  <p className="text-2xl font-black text-green-600">6th coffee FREE! ☕</p>
+                </div>
+
+                <div className="mb-4">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm">Redemption Progress</span>
+                    <span className="text-sm font-bold text-orange-600">{prog}/5</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {[1,2,3,4,5].map(i => (
+                      <div key={i} className={`flex-1 h-3 rounded-full ${i <= prog ? 'bg-orange-500' : 'bg-stone-200'}`}></div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-stone-500 mt-2">Redeem your codes at the counter to progress!</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-orange-50 p-4 flex flex-col items-center justify-center">
+          <div className="max-w-md w-full">
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center gap-4 mb-3">
+                <div className="w-12 h-12 text-amber-600"><Coffee /></div>
+                <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-700 to-orange-600">Locals</h1>
+              </div>
+              
+              <p className="text-sm font-medium text-stone-600 mb-3">🔢 {todayGame}</p>
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: userId.color }}></div>
+                <span className="text-sm font-bold" style={{ color: userId.color }}>{getName()}</span>
+              </div>
+              
+              <p className="text-amber-700 font-bold text-lg">Complete for exclusive discount</p>
+              
+              <div className="flex justify-center gap-6 mt-4">
+                <div className="flex items-center gap-2"><div className="w-5 h-5 text-orange-500"><Flame /></div><span className="font-bold text-lg">{userStats.currentStreak}</span></div>
+                <div className="flex items-center gap-2"><div className="w-5 h-5 text-amber-600"><Trophy /></div><span className="font-bold text-lg">{userStats.totalCompletions}</span></div>
+              </div>
+              
+              <div className="flex justify-center gap-2 mt-4">
+                <button onClick={() => setView('streaks')} className="px-4 py-2 rounded-xl bg-orange-500 text-white font-medium">Streaks</button>
+              </div>
+            </div>
+
+            {gameState.completed && (
+              <div className="bg-white/80 border-2 border-stone-200 rounded-3xl shadow-2xl p-8 mb-6 text-center">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                  <div className="w-12 h-12 text-white"><Trophy /></div>
+                </div>
+                <h2 className="text-3xl font-bold mb-2">Victory!</h2>
+                <p className="text-stone-600 mb-4">Completed in {fmt(gameState.completionTime)}</p>
+                <div className="bg-gradient-to-r from-amber-600 to-orange-600 rounded-2xl p-6 mb-4 shadow-xl">
+                  <div className="text-3xl font-mono font-bold text-white mb-2">{gameState.discountCode}</div>
+                  <div className="text-2xl font-black text-white">{gameState.discountPercent}% OFF</div>
+                </div>
+                <p className="text-xs text-stone-500 mb-1">Show to barista when ordering</p>
+                <button onClick={reset} className="bg-stone-800 text-white px-8 py-3 rounded-xl font-bold mt-4">New Puzzle</button>
+              </div>
+            )}
+
+            <div className="bg-white/80 border-2 border-stone-200 rounded-3xl shadow-2xl p-6 mb-4">
+              <div className="grid grid-cols-9 gap-0 border-4 border-stone-300 rounded-2xl overflow-hidden">
+                {gameState.board.map((row, i) => row.map((cell, j) => (
+                  <div 
+                    key={`${i}-${j}`} 
+                    onClick={() => selectCell(i, j)} 
+                    className={`aspect-square flex items-center justify-center text-lg font-bold
+                      ${(j + 1) % 3 === 0 && j !== 8 ? 'border-r-4 border-stone-400' : 'border-r border-stone-300'}
+                      ${(i + 1) % 3 === 0 && i !== 8 ? 'border-b-4 border-stone-400' : 'border-b border-stone-300'}
+                      ${isInit(i, j) ? 'bg-stone-100 text-stone-800' : 'bg-white text-amber-700'}
+                      ${isSel(i, j) ? 'bg-amber-100 ring-2 ring-amber-500' : ''}
+                      ${!isInit(i, j) && !gameState.completed ? 'cursor-pointer hover:bg-amber-50' : ''}`}
+                  >
+                    {cell !== 0 ? cell : ''}
+                  </div>
+                )))}
+              </div>
+            </div>
+
+            {!gameState.completed && (
+              <div className="bg-white/80 border-2 border-stone-200 rounded-3xl shadow-2xl p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <button onClick={undo} disabled={moveHistory.length === 0} className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold ${moveHistory.length > 0 ? 'bg-blue-100 text-blue-700 border-2 border-blue-300' : 'bg-stone-100 text-stone-400 border-2 border-stone-200'}`}>
+                    <div className="w-4 h-4"><Undo2 /></div> Undo
+                  </button>
+                  <span className="text-sm text-stone-600">Moves: {moveHistory.length}</span>
+                </div>
+                <div className="grid grid-cols-5 gap-2 mb-4">
+                  {[1,2,3,4,5,6,7,8,9].map(n => (
+                    <button key={n} onClick={() => enterNumber(n)} disabled={!gameState.selectedCell} className={`aspect-square rounded-xl text-xl font-bold ${gameState.selectedCell ? 'bg-gradient-to-br from-amber-600 to-orange-600 text-white shadow-lg' : 'bg-stone-100 text-stone-400 border-2 border-stone-200'}`}>{n}</button>
+                  ))}
+                  <button onClick={() => enterNumber(0)} disabled={!gameState.selectedCell} className={`aspect-square rounded-xl text-sm font-bold ${gameState.selectedCell ? 'bg-red-100 text-red-700 border-2 border-red-300' : 'bg-stone-100 text-stone-400 border-2 border-stone-200'}`}>Clear</button>
+                </div>
+                
+                {isPuzzleFilled() && (
+                  <button 
+                    onClick={handleSubmit}
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    Submit Answer ✓
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<Locals />, document.getElementById('root'));
+  </script>
+</body>
+</html>
