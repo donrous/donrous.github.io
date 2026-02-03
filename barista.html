@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Barista Terminal - Locals Coffee</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -11,6 +13,21 @@
 </head>
 <body>
   <div id="root"></div>
+  
+  <script>
+    // Initialize Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyCJHsW0CV5-pIyi1GVVldJPLyDNH89L29M",
+      authDomain: "locals-v1.firebaseapp.com",
+      projectId: "locals-v1",
+      storageBucket: "locals-v1.firebasestorage.app",
+      messagingSenderId: "978401457078",
+      appId: "1:784014573078:web:c51f07ec6d273b9a5e7f37"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+  </script>
   
   <script type="text/babel">
     const { useState, useEffect } = React;
@@ -31,66 +48,64 @@
       useEffect(() => {
         loadAllCodes();
         loadShopStats();
-        // Refresh every 10 seconds
-        const interval = setInterval(() => {
+        
+        // Real-time listener for codes
+        const unsubscribe = db.collection('codes').onSnapshot(() => {
           loadAllCodes();
           loadShopStats();
-        }, 10000);
-        return () => clearInterval(interval);
+        });
+        
+        return () => unsubscribe();
       }, []);
 
       const loadAllCodes = async () => {
-        if (typeof window === 'undefined' || !window.storage) return;
         try {
-          const result = await window.storage.list('code:', true);
-          if (result && result.keys) {
-            const codes = await Promise.all(
-              result.keys.map(async (key) => {
-                try {
-                  const data = await window.storage.get(key, true);
-                  return data ? JSON.parse(data.value) : null;
-                } catch {
-                  return null;
-                }
-              })
-            );
-            setAllCodes(codes.filter(c => c !== null).sort((a, b) => b.timestamp - a.timestamp));
-          }
+          const snapshot = await db.collection('codes').get();
+          const codes = [];
+          snapshot.forEach(doc => {
+            codes.push(doc.data());
+          });
+          setAllCodes(codes.sort((a, b) => b.timestamp - a.timestamp));
         } catch (err) {
-          console.log('No codes yet');
+          console.error('Error loading codes:', err);
           setAllCodes([]);
         }
       };
 
       const loadShopStats = async () => {
-        if (typeof window === 'undefined' || !window.storage) return;
         try {
           const today = new Date().toDateString();
-          const todayData = await window.storage.get(`stats:${today}`, true);
-          const totalData = await window.storage.get('stats:total', true);
+          const snapshot = await db.collection('codes').where('redeemed', '==', true).get();
           
-          setShopStats({
-            todayCount: todayData ? JSON.parse(todayData.value).count : 0,
-            totalCount: totalData ? JSON.parse(totalData.value).count : 0
+          let todayCount = 0;
+          let totalCount = 0;
+          
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            totalCount++;
+            if (data.date === today) todayCount++;
           });
-        } catch {
+          
+          setShopStats({ todayCount, totalCount });
+        } catch (err) {
+          console.error('Error loading stats:', err);
           setShopStats({ todayCount: 0, totalCount: 0 });
         }
       };
 
       const verifyCode = async () => {
-        if (typeof window === 'undefined' || !window.storage) return;
         setVerificationStatus('checking');
         
         try {
-          const result = await window.storage.get(`code:${shopCode}`, true);
+          const docRef = db.collection('codes').doc(shopCode);
+          const doc = await docRef.get();
           
-          if (!result) {
+          if (!doc.exists) {
             setVerificationStatus({ success: false, message: 'Code not found' });
             return;
           }
           
-          const codeData = JSON.parse(result.value);
+          const codeData = doc.data();
           
           if (codeData.redeemed) {
             setVerificationStatus({ 
@@ -107,27 +122,11 @@
             return;
           }
           
-          codeData.redeemed = true;
-          codeData.redeemedAt = Date.now();
-          await window.storage.set(`code:${shopCode}`, JSON.stringify(codeData), true);
-          
-          const today = new Date().toDateString();
-          
-          let todayStats = { count: 0 };
-          try {
-            const todayData = await window.storage.get(`stats:${today}`, true);
-            if (todayData) todayStats = JSON.parse(todayData.value);
-          } catch {}
-          todayStats.count += 1;
-          await window.storage.set(`stats:${today}`, JSON.stringify(todayStats), true);
-          
-          let totalStats = { count: 0 };
-          try {
-            const totalData = await window.storage.get('stats:total', true);
-            if (totalData) totalStats = JSON.parse(totalData.value);
-          } catch {}
-          totalStats.count += 1;
-          await window.storage.set('stats:total', JSON.stringify(totalStats), true);
+          // Mark as redeemed
+          await docRef.update({
+            redeemed: true,
+            redeemedAt: Date.now()
+          });
           
           setVerificationStatus({ 
             success: true, 
@@ -138,8 +137,6 @@
           });
           
           setTimeout(() => {
-            loadAllCodes();
-            loadShopStats();
             setShopCode('');
             setVerificationStatus(null);
           }, 3000);
@@ -183,7 +180,7 @@
                   type="text" 
                   value={shopCode} 
                   onChange={(e) => setShopCode(e.target.value.toUpperCase())} 
-                  placeholder="LOCAL-0130-001" 
+                  placeholder="LOCAL-0204-001" 
                   className="w-full px-6 py-4 bg-stone-50 border-2 rounded-2xl text-center text-2xl font-mono mb-3 focus:border-amber-500 focus:outline-none" 
                 />
                 <button 
