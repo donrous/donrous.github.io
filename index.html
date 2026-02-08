@@ -62,6 +62,60 @@
     const Trophy = () => <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>;
     const Flame = () => <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>;
     const Undo2 = () => <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>;
+    const HelpIcon = () => <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+    const XIcon = () => <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+
+    // --- HELP MODAL ---
+    const HelpModal = ({ gameName, onClose }) => {
+      const instructions = {
+        'Sudoku': (
+          <>
+            <p className="mb-2">Fill the grid so that every row, column, and 3x3 box contains the numbers 1 to 9.</p>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-stone-600">
+              <li>Tap a cell to select it.</li>
+              <li>Tap a number below to fill it.</li>
+              <li>No duplicates in any row or column!</li>
+            </ul>
+          </>
+        ),
+        'Memory Match': (
+          <>
+            <p className="mb-2">Find all the matching pairs of coffee icons.</p>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-stone-600">
+              <li>Tap a card to flip it over.</li>
+              <li>Try to remember what you saw!</li>
+              <li>Match all pairs to win your discount.</li>
+            </ul>
+          </>
+        ),
+        'Coffee Word': (
+          <>
+            <p className="mb-2">Guess the 5-letter coffee word in 6 tries.</p>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-stone-600">
+              <li><span className="bg-green-500 text-white px-1 rounded text-xs">GREEN</span> means correct letter & spot.</li>
+              <li><span className="bg-yellow-500 text-white px-1 rounded text-xs">YELLOW</span> means correct letter, wrong spot.</li>
+              <li><span className="bg-stone-400 text-white px-1 rounded text-xs">GRAY</span> means letter not in word.</li>
+            </ul>
+          </>
+        )
+      };
+
+      return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 text-stone-400 hover:text-stone-800"><XIcon/></button>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 text-amber-600"><HelpIcon/></div>
+              <h3 className="text-xl font-bold text-stone-900">How to Play {gameName}</h3>
+            </div>
+            <div className="text-stone-700">
+              {instructions[gameName]}
+            </div>
+            <button onClick={onClose} className="w-full mt-6 bg-stone-800 text-white py-3 rounded-xl font-bold">Got it!</button>
+          </div>
+        </div>
+      );
+    };
 
     // --- GAME 1: SUDOKU LOGIC ---
     const SudokuGame = ({ onComplete }) => {
@@ -151,7 +205,6 @@
       const icons = ['☕', '🥐', '🥯', '🥛', '🍪', '🍰', '🥡', '🍩']; 
       
       const [cards, setCards] = useState(() => {
-         // Shuffle consistently for the day or random? Random is fine for memory.
          const deck = [...icons, ...icons].sort(() => Math.random() - 0.5);
          return deck.map((icon, id) => ({ id, icon, flipped: false, matched: false }));
       });
@@ -209,7 +262,6 @@
     // --- GAME 3: COFFEE WORDLE LOGIC ---
     const WordleGame = ({ onComplete }) => {
       const WORDS = ['LATTE', 'ROAST', 'MOCHA', 'GRIND', 'BEANS', 'STEAM', 'AROMA', 'CREMA'];
-      // Select word based on date so everyone gets the same one
       const target = useMemo(() => {
         const idx = Math.floor(Date.now() / 86400000) % WORDS.length;
         return WORDS[idx];
@@ -217,7 +269,7 @@
 
       const [guesses, setGuesses] = useState([]);
       const [current, setCurrent] = useState('');
-      const [status, setStatus] = useState('playing'); // playing, won, lost
+      const [status, setStatus] = useState('playing');
 
       const handleKey = (k) => {
         if (status !== 'playing') return;
@@ -240,7 +292,6 @@
         }
       };
 
-      // Keyboard
       const keys = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
 
       const getTileColor = (letter, i, guess) => {
@@ -282,20 +333,19 @@
     // --- MAIN APP ---
     function Locals() {
       const [view, setView] = useState('game');
-      // Game Rotation Logic
+      const [showHelp, setShowHelp] = useState(false);
+      
       const dayIndex = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
-      // 0 = Sudoku, 1 = Memory, 2 = Wordle
       const gameType = dayIndex % 3; 
       
       const GAME_CONFIG = {
-        0: { id: 'sudoku', label: 'Boost Focus', name: 'Sudoku', Comp: SudokuGame },
-        1: { id: 'memory', label: 'Sharpen Recall', name: 'Memory Match', Comp: MemoryGame },
-        2: { id: 'wordle', label: 'Expand Vocabulary', name: 'Coffee Word', Comp: WordleGame }
+        0: { id: 'sudoku', label: 'Boost Focus', name: 'Sudoku', objective: 'Fill every row, column & box with 1-9', Comp: SudokuGame },
+        1: { id: 'memory', label: 'Sharpen Recall', name: 'Memory Match', objective: 'Find all matching coffee pairs', Comp: MemoryGame },
+        2: { id: 'wordle', label: 'Expand Vocabulary', name: 'Coffee Word', objective: 'Guess the 5-letter word in 6 tries', Comp: WordleGame }
       };
 
       const currentGame = GAME_CONFIG[gameType];
 
-      // --- USER & STATS LOGIC (Shared) ---
       const adjectives = ['Swift', 'Clever', 'Bright', 'Quick', 'Sharp', 'Smart', 'Wise', 'Bold'];
       const nouns = ['Fox', 'Eagle', 'Tiger', 'Wolf', 'Bear', 'Hawk', 'Lion', 'Panda'];
       const colors = ['#d4af37', '#ffd700', '#c9b037', '#b8860b', '#daa520', '#f4c430'];
@@ -316,18 +366,13 @@
       });
       useEffect(() => localStorage.setItem('user-stats', JSON.stringify(userStats)), [userStats]);
 
-      // --- VICTORY STATE ---
       const [completedToday, setCompletedToday] = useState(false);
       const [victoryData, setVictoryData] = useState(null);
 
-      // Check if already played today
       useEffect(() => {
          const today = new Date().toDateString();
          if (userStats.lastPlayedDate === today) {
             setCompletedToday(true);
-            // If they reload, we don't show the code again immediately in this simple version, 
-            // or we could save the daily code in localStorage. 
-            // For now, let's just let them play again for fun or show a "Done" screen.
          }
       }, []);
 
@@ -336,9 +381,8 @@
       };
 
       const handleGameComplete = async () => {
-        if (completedToday) return; // Already triggered
+        if (completedToday) return;
 
-        // 1. Audio & Confetti
         successSound.play().catch(e=>console.log(e));
         const duration = 3000; const end = Date.now() + duration;
         const interval = setInterval(() => {
@@ -346,15 +390,13 @@
           confetti({ particleCount: 50, spread: 360, origin: { x: Math.random(), y: Math.random() - 0.2 } });
         }, 250);
 
-        // 2. Data Calculation
         const date = new Date();
         const dateStr = `${(date.getMonth()+1).toString().padStart(2,'0')}${date.getDate().toString().padStart(2,'0')}`;
         const seq = await getSeqCode();
         const code = `LOCAL-${dateStr}-${seq.toString().padStart(3,'0')}`;
         const isFree = userStats.consecutiveRedemptions >= 5;
-        const discountPercent = isFree ? 100 : (Math.random() > 0.5 ? 10 : 5); // Simple logic for non-sudoku games
+        const discountPercent = isFree ? 100 : (Math.random() > 0.5 ? 10 : 5);
 
-        // 3. Streak Logic
         const today = date.toDateString();
         let newStreak = 1;
         if (userStats.lastPlayedDate) {
@@ -371,7 +413,6 @@
         };
         setUserStats(newStats);
 
-        // 4. Save to Firebase
         try {
           await db.collection('codes').doc(code).set({
              code, userId: userId.id, userName: `${userId.adjective}${userId.noun}#${userId.number}`,
@@ -379,21 +420,18 @@
           });
         } catch(e) { console.error(e); }
 
-        // 5. Show Victory
         setVictoryData({ code, discountPercent, isFree });
         setCompletedToday(true);
       };
 
       const resetGame = () => {
-        // Allow replay for fun, but don't give new code
         setCompletedToday(false);
         setVictoryData(null);
-        window.location.reload(); // Simplest way to reset internal game states
+        window.location.reload();
       };
 
       const getName = () => `${userId.adjective}${userId.noun}#${userId.number}`;
 
-      // --- RENDER STREAK VIEW ---
       if (view === 'streaks') {
         const prog = userStats.consecutiveRedemptions % 6;
         return (
@@ -418,21 +456,32 @@
         );
       }
 
-      // --- RENDER GAME VIEW ---
       return (
         <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-orange-50 p-4 flex flex-col items-center justify-center">
-          <div className="max-w-md w-full">
+          <div className="max-w-md w-full relative">
             
+            {/* HELP MODAL */}
+            {showHelp && <HelpModal gameName={currentGame.name} onClose={() => setShowHelp(false)} />}
+
             {/* HEADER */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-6 relative">
+               {/* Help Button */}
+               <button onClick={() => setShowHelp(true)} className="absolute top-0 right-0 p-2 text-stone-400 hover:text-amber-600 transition-colors">
+                 <div className="w-6 h-6"><HelpIcon /></div>
+               </button>
+
               <div className="flex items-center justify-center gap-4 mb-1">
                 <div className="w-12 h-12 text-amber-600 mt-2"><Coffee /></div>
                 <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-700 to-orange-600">Locals</h1>
               </div>
-              <p className="text-stone-500 font-medium italic mb-4">{currentGame.label} - Stay Sharp</p>
+              <p className="text-stone-500 font-medium italic mb-2">{currentGame.label} - Stay Sharp</p>
               
-              <div className="bg-white/50 backdrop-blur rounded-full px-4 py-1 inline-block mb-3 border border-stone-200">
-                 <p className="text-sm font-bold text-stone-600 uppercase tracking-wider">{currentGame.name}</p>
+              <div className="flex flex-col items-center mb-3">
+                 <div className="bg-white/50 backdrop-blur rounded-full px-4 py-1 border border-stone-200 mb-2">
+                    <p className="text-sm font-bold text-stone-600 uppercase tracking-wider">{currentGame.name}</p>
+                 </div>
+                 {/* OBJECTIVE LINE */}
+                 <p className="text-xs font-semibold text-stone-500 bg-stone-100/50 px-3 py-1 rounded-lg border border-stone-200/50">{currentGame.objective}</p>
               </div>
 
               <div className="flex items-center justify-center gap-2 mb-3">
