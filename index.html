@@ -457,6 +457,8 @@
 
     function Locals() {
       const [view, setView] = useState('game');
+      const urlParams = new URLSearchParams(window.location.search);
+const locationRef = urlParams.get('ref') || 'unknown';
       const [showHelp, setShowHelp] = useState(false);
 
       const dayIndex = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
