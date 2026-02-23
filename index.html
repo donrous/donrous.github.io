@@ -534,7 +534,8 @@
         try {
           await db.collection('codes').doc(code).set({
             code, userId: userId.id, userName: `${userId.adjective}${userId.noun}#${userId.number}`,
-            date: today, discountPercent, isFree, game: currentGame.name
+            date: today, discountPercent, isFree, game: currentGame.name,
+            location: locationRef
           });
         } catch(e) { console.error(e); }
 
